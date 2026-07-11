@@ -1,0 +1,24 @@
+<idea-plugin>
+    <id>io.github.gabrielbbaldez.stacktale</id>
+    <name>Stacktale</name>
+    <version>0.1.0</version>
+    <vendor url="https://github.com/GabrielBBaldez/stacktale">Gabriel Baldez</vendor>
+
+    <description><![CDATA[
+        Surfaces <a href="https://github.com/GabrielBBaldez/stacktale">stacktale</a>'s AI-ready
+        error reports (<code>errors-ai.log</code>) in a tool window:
+        <ul>
+            <li>latest reports first, root cause up front;</li>
+            <li>double-click to jump straight to the culprit line;</li>
+            <li>one button copies the report, formatted for an AI assistant.</li>
+        </ul>
+        Requires the <code>stacktale</code> logging library writing <code>errors-ai.log</code> in your project.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow id="Stacktale" anchor="bottom" icon="/icons/stacktale.svg"
+                    factoryClass="io.github.gabrielbbaldez.stacktale.idea.StacktaleToolWindowFactory"/>
+    </extensions>
+</idea-plugin>

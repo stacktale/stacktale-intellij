@@ -1,0 +1,8 @@
+.gradle/
+.intellijPlatform/
+build/
+out/
+smoke/
+*.log
+.idea/
+*.iml
