@@ -9,7 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class StReportParserTest {
 
     private static final String SAMPLE = """
-            # AI-oriented error reports (format st/1, https://github.com/GabrielBBaldez/stacktale)
+            # AI-oriented error reports (format st/1, https://github.com/stacktale/stacktale)
             # Each report is delimited by "━━━ ERROR #<id> ━━━" ... "━━━ END #<id> ━━━".
             ━━━ ERROR #a1b2c3d4 ━━━ 2026-07-10 20:16:40.412 thread=http-nio-8080-exec-2 ━━━
             IllegalStateException: payment gateway refused

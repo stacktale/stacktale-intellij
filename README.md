@@ -1,6 +1,6 @@
 # stacktale-intellij
 
-IntelliJ IDEA / JetBrains plugin for [**stacktale**](https://github.com/GabrielBBaldez/stacktale) —
+IntelliJ IDEA / JetBrains plugin for [**stacktale**](https://github.com/stacktale/stacktale) —
 the Java logging library that turns errors into AI-ready reports (`errors-ai.log`).
 
 The report already knows the root cause and the exact culprit frame; this plugin makes that

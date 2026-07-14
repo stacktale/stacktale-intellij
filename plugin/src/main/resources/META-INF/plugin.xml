@@ -2,10 +2,10 @@
     <id>io.github.gabrielbbaldez.stacktale</id>
     <name>Stacktale</name>
     <version>0.1.0</version>
-    <vendor url="https://github.com/GabrielBBaldez/stacktale">Gabriel Baldez</vendor>
+    <vendor url="https://github.com/stacktale/stacktale">Gabriel Baldez</vendor>
 
     <description><![CDATA[
-        Surfaces <a href="https://github.com/GabrielBBaldez/stacktale">stacktale</a>'s AI-ready
+        Surfaces <a href="https://github.com/stacktale/stacktale">stacktale</a>'s AI-ready
         error reports (<code>errors-ai.log</code>) in a tool window:
         <ul>
             <li>latest reports first, root cause up front;</li>
