@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Questions & ideas
+    url: https://github.com/stacktale/stacktale/discussions
+    about: Q&A and open-ended ideas live in the main repo's Discussions.
+  - name: Bug in the report itself (library)
+    url: https://github.com/stacktale/stacktale/issues
+    about: Wrong culprit / missing frame / format issues belong to the library.
