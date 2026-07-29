@@ -11,6 +11,7 @@ import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.SimpleToolWindowPanel;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.psi.search.FilenameIndex;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.ui.JBSplitter;
@@ -44,15 +45,17 @@ class StacktalePanel extends SimpleToolWindowPanel {
     private static final int POLL_MILLIS = 3000;
 
     private final Project project;
+    private final ToolWindow toolWindow;
     private final DefaultListModel<StReport> model = new DefaultListModel<>();
     private final JBList<StReport> list = new JBList<>(model);
     private final JTextArea detail = new JTextArea();
     private final Alarm alarm;
-    private String lastContent = "";
+    private String lastContent;
 
-    StacktalePanel(Project project) {
+    StacktalePanel(Project project, ToolWindow toolWindow) {
         super(true, true);
         this.project = project;
+        this.toolWindow = toolWindow;
         this.alarm = new Alarm(Alarm.ThreadToUse.SWING_THREAD, project);
 
         list.setCellRenderer(new ReportCellRenderer());
@@ -82,7 +85,7 @@ class StacktalePanel extends SimpleToolWindowPanel {
         group.add(new AnAction("Refresh", "Re-read errors-ai.log", AllIcons.Actions.Refresh) {
             @Override
             public void actionPerformed(@NotNull AnActionEvent e) {
-                lastContent = ""; // force a re-read
+                lastContent = null; // force a re-read
                 refresh();
             }
         });
@@ -113,12 +116,16 @@ class StacktalePanel extends SimpleToolWindowPanel {
     private void refresh() {
         Path log = findLog();
         if (log == null) {
+            toolWindow.setTitle("Stacktale");
             model.clear();
             detail.setText("No errors-ai.log found in this project yet.\n\n"
                     + "Add the stacktale library and trigger an error — reports will appear here.");
-            lastContent = "";
+            lastContent = null;
             return;
         }
+
+        toolWindow.setTitle("Stacktale — " + log);
+
         String content;
         try {
             content = Files.readString(log, StandardCharsets.UTF_8);
@@ -136,7 +143,9 @@ class StacktalePanel extends SimpleToolWindowPanel {
             int keep = previouslySelected == null ? 0 : indexOfId(previouslySelected.id());
             list.setSelectedIndex(Math.max(0, keep));
         } else {
-            detail.setText("");
+            detail.setText("No error reports yet — the file has none.\n\n"
+                    + "Resolved log path:\n" + log);
+            detail.setCaretPosition(0);
         }
     }
 
@@ -171,7 +180,10 @@ class StacktalePanel extends SimpleToolWindowPanel {
 
     private void jumpToCulprit() {
         StReport report = list.getSelectedValue();
-        if (report != null) ReportNavigator.navigate(project, report.culprit());
+        if (report != null && !ReportNavigator.navigate(project, report.culprit())) {
+            detail.setText("Report #" + report.id() + " has no source frame to open.");
+            detail.setCaretPosition(0);
+        }
     }
 
     private void copySelected() {

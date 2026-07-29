@@ -12,7 +12,7 @@ public class StacktaleToolWindowFactory implements ToolWindowFactory {
 
     @Override
     public void createToolWindowContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
-        StacktalePanel panel = new StacktalePanel(project);
+        StacktalePanel panel = new StacktalePanel(project, toolWindow);
         Content content = ContentFactory.getInstance().createContent(panel, "", false);
         toolWindow.getContentManager().addContent(content);
     }
