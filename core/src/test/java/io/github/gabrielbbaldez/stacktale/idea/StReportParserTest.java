@@ -22,7 +22,6 @@ class StReportParserTest {
             env: app=shop-api | java 21 | linux
             ━━━ END #a1b2c3d4 ━━━
             """;
-
     @Test
     void parsesReportIdHeadlineAndCulpritLocation() {
         List<StReport> reports = StReportParser.parse(SAMPLE);
@@ -37,7 +36,6 @@ class StReportParserTest {
         assertThat(r.culprit().line()).isEqualTo(44);
         assertThat(r.block()).startsWith("━━━ ERROR #a1b2c3d4").contains("━━━ END #a1b2c3d4");
     }
-
     @Test
     void ignoresTheSelfDescribingHeaderAndParsesEveryReport() {
         String two = SAMPLE
@@ -51,20 +49,73 @@ class StReportParserTest {
         assertThat(reports).extracting(StReport::id).containsExactly("a1b2c3d4", "beef");
         assertThat(reports.get(1).culprit().line()).isEqualTo(87);
     }
-
     @Test
-    void aTruncatedTrailingBlockIsStillSurfaced() {
-        // a file killed mid-write: the last block has no END line
+    void discardsTruncatedBlocksAndStillParsesTheNextCompleteReport() {
         String truncated = "━━━ ERROR #dead ━━━ 2026-07-10 20:18:00.000 thread=main ━━━\n"
                 + "RuntimeException: boom\n"
                 + "at Svc.run(Svc.java:12) ← YOUR CODE\n";
-
-        List<StReport> reports = StReportParser.parse(truncated);
-
-        assertThat(reports).hasSize(1);
-        assertThat(reports.get(0).culprit().fileName()).isEqualTo("Svc.java");
+        assertThat(StReportParser.parse(truncated)).isEmpty();
+        String completeAfterTruncated = truncated
+                + "━━━ ERROR #beef ━━━ 2026-07-10 20:19:00.000 thread=main ━━━\n"
+                + "RuntimeException: complete report\n"
+                + "at GoodService.run(GoodService.java:7) ← YOUR CODE\n"
+                + "━━━ END #beef ━━━\n";
+        assertThat(StReportParser.parse(completeAfterTruncated))
+                .extracting(StReport::id)
+                .containsExactly("beef");
     }
+    @Test
+    void markedFrameWithNegativeLineDoesNotFallBackToAnotherFile() {
+        String content = """
+                ━━━ ERROR #nodebug ━━━ 2026-07-10 20:20:00.000 thread=main ━━━
+                IllegalStateException: wrapped failure
+                at CheckoutService.wrap(CheckoutService.java:88)
+                at OrderService.confirm(OrderService.java:-1) ← YOUR CODE
+                ━━━ END #nodebug ━━━
+                """;
 
+        StReport report = StReportParser.parse(content).get(0);
+
+        assertThat(report.culprit()).isNull();
+        assertThat(report.frames())
+                .extracting(StFrame::fileName)
+                .containsExactly("CheckoutService.java");
+    }
+    @Test
+    void clampsAbsurdLineNumbersInsteadOfThrowing() {
+        String content = """
+                ━━━ ERROR #huge ━━━ 2026-07-10 20:21:00.000 thread=main ━━━
+                RuntimeException: huge line number
+                at HugeService.run(HugeService.java:999999999999999999999999) ← YOUR CODE
+                ━━━ END #huge ━━━
+                """;
+
+        List<StReport> reports = StReportParser.parse(content);
+        assertThat(reports).hasSize(1);
+        assertThat(reports.get(0).culprit()).isNotNull();
+        assertThat(reports.get(0).culprit().line()).isEqualTo(Integer.MAX_VALUE);
+    }
+    @Test
+    void parsesUnicodeAndKotlinScriptFileNames() {
+        String content = """
+                ━━━ ERROR #unicode ━━━ 2026-07-10 20:22:00.000 thread=main ━━━
+                RuntimeException: unicode filename
+                at Ação.run(Ação.java:23) ← YOUR CODE
+                ━━━ END #unicode ━━━
+                ━━━ ERROR #script ━━━ 2026-07-10 20:23:00.000 thread=main ━━━
+                RuntimeException: Kotlin script filename
+                at 構建.run(構建.kts:9) ← YOUR CODE
+                ━━━ END #script ━━━
+                """;
+
+        List<StReport> reports = StReportParser.parse(content);
+
+        assertThat(reports).hasSize(2);
+        assertThat(reports.get(0).culprit().fileName()).isEqualTo("Ação.java");
+        assertThat(reports.get(0).culprit().line()).isEqualTo(23);
+        assertThat(reports.get(1).culprit().fileName()).isEqualTo("構建.kts");
+        assertThat(reports.get(1).culprit().line()).isEqualTo(9);
+    }
     @Test
     void toleratesEmptyAndHeaderOnlyFiles() {
         assertThat(StReportParser.parse("")).isEmpty();

@@ -18,7 +18,8 @@ public final class StReportParser {
     // id + timestamp from "━━━ ERROR #a1b2 ━━━ 2026-07-10 20:16:40.412 thread=… ━━━"
     private static final Pattern HEADER = Pattern.compile("^━━━ ERROR #(\\S+) ━━━ (.+?) thread=");
     // a frame carrying a source location: "…(PaymentService.java:44)"
-    private static final Pattern FRAME = Pattern.compile("\\(([\\w$]+\\.(?:java|kt|groovy|scala)):(\\d+)\\)");
+    private static final Pattern FRAME = Pattern.compile(
+            "\\(([^\\s:()]+\\.(?:java|kts|kt|groovy|scala)):(-?\\d+)\\)");
 
     private StReportParser() {
     }
@@ -37,24 +38,27 @@ public final class StReportParser {
             }
             List<String> block = new ArrayList<>();
             block.add(stripCr(lines[i]));
+            boolean complete = false;
             int j = i + 1;
             while (j < lines.length) {
                 String bl = stripCr(lines[j]);
                 if (bl.startsWith(START)) break; // next block began — this one was truncated
                 block.add(bl);
                 if (bl.startsWith(END)) {
+                    complete = true;
                     j++;
                     break;
                 }
                 j++;
             }
-            StReport r = parseBlock(block);
-            if (r != null) reports.add(r);
+            if (complete) {
+                StReport report = parseBlock(block);
+                if (report != null) reports.add(report);
+            }
             i = j;
         }
         return reports;
     }
-
     private static StReport parseBlock(List<String> block) {
         Matcher h = HEADER.matcher(block.get(0));
         if (!h.find()) return null;
@@ -63,21 +67,38 @@ public final class StReportParser {
         String headline = block.size() > 1 ? block.get(1).trim() : "";
 
         StFrame culprit = null;
+        boolean markedFrameFound = false;
         List<StFrame> frames = new ArrayList<>();
         for (String bl : block) {
             Matcher fm = FRAME.matcher(bl);
             if (fm.find()) {
-                StFrame f = new StFrame(fm.group(1), Integer.parseInt(fm.group(2)), bl.trim());
-                frames.add(f);
-                if (culprit == null && (bl.contains("← YOUR CODE") || bl.contains("← culprit"))) {
-                    culprit = f;
-                }
+                boolean marked = bl.contains("← YOUR CODE") || bl.contains("← culprit");
+                if (marked) markedFrameFound = true;
+
+                int line = parseLineNumber(fm.group(2));
+                if (line <= 0) continue;
+
+                StFrame frame = new StFrame(fm.group(1), line, bl.trim());
+                frames.add(frame);
+                if (culprit == null && marked) culprit = frame;
             }
         }
-        if (culprit == null && !frames.isEmpty()) culprit = frames.get(0);
+        if (culprit == null && !markedFrameFound && !frames.isEmpty()) {
+            culprit = frames.get(0);
+        }
         return new StReport(id, timestamp, headline, culprit, frames, String.join("\n", block));
     }
-
+    private static int parseLineNumber(String value) {
+        try {
+            long line = Long.parseLong(value);
+            if (line > Integer.MAX_VALUE) return Integer.MAX_VALUE;
+            if (line < Integer.MIN_VALUE) return Integer.MIN_VALUE;
+            return (int) line;
+        } catch (NumberFormatException ignored) {
+            // The regex guarantees digits, so overflow is the only expected failure.
+            return value.startsWith("-") ? Integer.MIN_VALUE : Integer.MAX_VALUE;
+        }
+    }
     private static String stripCr(String s) {
         return s.endsWith("\r") ? s.substring(0, s.length() - 1) : s;
     }
