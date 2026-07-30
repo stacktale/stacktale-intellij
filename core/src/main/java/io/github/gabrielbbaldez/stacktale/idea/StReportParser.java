@@ -59,6 +59,7 @@ public final class StReportParser {
         }
         return reports;
     }
+
     private static StReport parseBlock(List<String> block) {
         Matcher h = HEADER.matcher(block.get(0));
         if (!h.find()) return null;
@@ -88,6 +89,7 @@ public final class StReportParser {
         }
         return new StReport(id, timestamp, headline, culprit, frames, String.join("\n", block));
     }
+
     private static int parseLineNumber(String value) {
         try {
             long line = Long.parseLong(value);
@@ -99,6 +101,7 @@ public final class StReportParser {
             return value.startsWith("-") ? Integer.MIN_VALUE : Integer.MAX_VALUE;
         }
     }
+
     private static String stripCr(String s) {
         return s.endsWith("\r") ? s.substring(0, s.length() - 1) : s;
     }

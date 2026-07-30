@@ -36,6 +36,7 @@ class StReportParserTest {
         assertThat(r.culprit().line()).isEqualTo(44);
         assertThat(r.block()).startsWith("━━━ ERROR #a1b2c3d4").contains("━━━ END #a1b2c3d4");
     }
+
     @Test
     void ignoresTheSelfDescribingHeaderAndParsesEveryReport() {
         String two = SAMPLE
@@ -49,6 +50,7 @@ class StReportParserTest {
         assertThat(reports).extracting(StReport::id).containsExactly("a1b2c3d4", "beef");
         assertThat(reports.get(1).culprit().line()).isEqualTo(87);
     }
+
     @Test
     void discardsTruncatedBlocksAndStillParsesTheNextCompleteReport() {
         String truncated = "━━━ ERROR #dead ━━━ 2026-07-10 20:18:00.000 thread=main ━━━\n"
@@ -64,6 +66,7 @@ class StReportParserTest {
                 .extracting(StReport::id)
                 .containsExactly("beef");
     }
+
     @Test
     void markedFrameWithNegativeLineDoesNotFallBackToAnotherFile() {
         String content = """
@@ -81,6 +84,7 @@ class StReportParserTest {
                 .extracting(StFrame::fileName)
                 .containsExactly("CheckoutService.java");
     }
+
     @Test
     void clampsAbsurdLineNumbersInsteadOfThrowing() {
         String content = """
@@ -95,6 +99,7 @@ class StReportParserTest {
         assertThat(reports.get(0).culprit()).isNotNull();
         assertThat(reports.get(0).culprit().line()).isEqualTo(Integer.MAX_VALUE);
     }
+
     @Test
     void parsesUnicodeAndKotlinScriptFileNames() {
         String content = """
@@ -116,6 +121,7 @@ class StReportParserTest {
         assertThat(reports.get(1).culprit().fileName()).isEqualTo("構建.kts");
         assertThat(reports.get(1).culprit().line()).isEqualTo(9);
     }
+
     @Test
     void toleratesEmptyAndHeaderOnlyFiles() {
         assertThat(StReportParser.parse("")).isEmpty();
