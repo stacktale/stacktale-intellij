@@ -1,0 +1,104 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A second push to a PR makes the first run's answer worthless — the verifier job downloads
+# IDEs, so letting both finish is minutes of runner time spent on a stale commit.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+
+      # :core holds the parser and its tests; :plugin has none by design (its test task is
+      # disabled in build.gradle.kts), so `gradlew test` alone reports success either way.
+      # Naming :core:test means a removed test suite shows up as a task that no longer exists.
+      - run: ./gradlew :core:test
+
+      - name: Test report
+        if: always()
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(core/build/test-results/test/TEST-*.xml)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error::no test results — :core:test produced nothing"
+            exit 1
+          fi
+          awk -F'"' '/<testsuite /{for(i=1;i<=NF;i++){
+              if($(i-1)~/tests=$/)t+=$i; if($(i-1)~/failures=$/)f+=$i; if($(i-1)~/errors=$/)e+=$i}}
+            END{printf ":core — %d tests, %d failures, %d errors\n", t, f, e}' "${files[@]}" \
+            >> "$GITHUB_STEP_SUMMARY"
+
+      - run: ./gradlew build verifyPluginProjectConfiguration verifyPluginStructure
+
+      - name: Build the distributable
+        run: ./gradlew buildPlugin
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plugin-zip
+          path: plugin/build/distributions/*.zip
+          if-no-files-found: error
+
+  verify:
+    name: Plugin Verifier
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Each IDE under test is a ~1GB download. Caching them separately from the Gradle cache
+      # keeps a dependency change from evicting them.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches/modules-2/files-2.1/com.jetbrains.intellij.idea
+            ~/.pluginVerifier
+          key: ide-verifier-${{ hashFiles('plugin/build.gradle.kts') }}
+          restore-keys: ide-verifier-
+
+      - run: ./gradlew verifyPlugin
+
+      # The task passes when an IDE reports problems below the failure level, and it passes
+      # just as quietly when the ides {} block resolves to nothing. Assert on the reports:
+      # one directory per verified IDE, and the count has to match what is declared.
+      - name: Every declared IDE was actually verified
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          reports=plugin/build/reports/pluginVerifier
+          declared=$(grep -c '^ *ide("' plugin/build.gradle.kts)
+          dirs=("$reports"/*/)
+          echo "declared=$declared verified=${#dirs[@]}"
+          if [ "${#dirs[@]}" -ne "$declared" ]; then
+            echo "::error::$declared IDEs declared in pluginVerification, ${#dirs[@]} verified"
+            for d in "${dirs[@]}"; do echo "  $(basename "$d")"; done
+            exit 1
+          fi
+          for d in "${dirs[@]}"; do
+            echo "- verified against $(basename "$d")" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: plugin-verifier-reports
+          path: plugin/build/reports/pluginVerifier
+          if-no-files-found: warn
