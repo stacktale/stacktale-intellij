@@ -25,7 +25,8 @@ jobs:
       # :core holds the parser and its tests; :plugin has none by design (its test task is
       # disabled in build.gradle.kts), so `gradlew test` alone reports success either way.
       # Naming :core:test means a removed test suite shows up as a task that no longer exists.
-      - run: ./gradlew :core:test
+      - id: coretest
+        run: ./gradlew :core:test
 
       - name: Test report
         if: always()
@@ -34,7 +35,13 @@ jobs:
           shopt -s nullglob
           files=(core/build/test-results/test/TEST-*.xml)
           if [ ${#files[@]} -eq 0 ]; then
-            echo "::error::no test results — :core:test produced nothing"
+            # No results after a *failed* test step says nothing new — the job is already red
+            # for the real reason. It is only a finding when the step claimed success.
+            if [ "${{ steps.coretest.outcome }}" != "success" ]; then
+              echo "::notice::no test results, but the test step failed above — see it for the cause"
+              exit 0
+            fi
+            echo "::error:::core:test succeeded and produced no results — did the suite disappear?"
             exit 1
           fi
           awk -F'"' '/<testsuite /{for(i=1;i<=NF;i++){
