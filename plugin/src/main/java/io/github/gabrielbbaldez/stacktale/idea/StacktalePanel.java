@@ -6,19 +6,15 @@ import com.intellij.openapi.actionSystem.ActionToolbar;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.DefaultActionGroup;
-import com.intellij.openapi.application.ReadAction;
 import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.SimpleToolWindowPanel;
-import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.wm.ToolWindow;
-import com.intellij.psi.search.FilenameIndex;
-import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.ui.JBSplitter;
 import com.intellij.ui.components.JBList;
 import com.intellij.ui.components.JBScrollPane;
-import com.intellij.util.Alarm;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.DefaultListModel;
@@ -29,34 +25,28 @@ import java.awt.Font;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Collection;
 import java.util.List;
 
 /**
  * The Stacktale tool window: newest reports on the left, the raw block on the right,
- * a toolbar to refresh / jump to the culprit / copy for an AI. Re-reads {@code errors-ai.log}
- * on a light poll so new errors show up without a manual refresh.
+ * and a toolbar to refresh / jump to the culprit / copy for an AI. Reports come from
+ * the single project-level poll owned by {@link StacktaleReportService}.
  */
 class StacktalePanel extends SimpleToolWindowPanel {
 
-    private static final int POLL_MILLIS = 3000;
-
     private final Project project;
     private final ToolWindow toolWindow;
+    private final StacktaleReportService reportService;
     private final DefaultListModel<StReport> model = new DefaultListModel<>();
     private final JBList<StReport> list = new JBList<>(model);
     private final JTextArea detail = new JTextArea();
-    private final Alarm alarm;
-    private String lastContent;
 
     StacktalePanel(Project project, ToolWindow toolWindow) {
         super(true, true);
         this.project = project;
         this.toolWindow = toolWindow;
-        this.alarm = new Alarm(Alarm.ThreadToUse.SWING_THREAD, project);
+        this.reportService = StacktaleReportService.getInstance(project);
 
         list.setCellRenderer(new ReportCellRenderer());
         list.addListSelectionListener(e -> showSelected());
@@ -76,8 +66,7 @@ class StacktalePanel extends SimpleToolWindowPanel {
         setContent(splitter);
         setToolbar(buildToolbar().getComponent());
 
-        refresh();
-        schedulePoll();
+        reportService.addListener(this::reportsChanged);
     }
 
     private ActionToolbar buildToolbar() {
@@ -85,8 +74,7 @@ class StacktalePanel extends SimpleToolWindowPanel {
         group.add(new AnAction("Refresh", "Re-read errors-ai.log", AllIcons.Actions.Refresh) {
             @Override
             public void actionPerformed(@NotNull AnActionEvent e) {
-                lastContent = null; // force a re-read
-                refresh();
+                reportService.refreshNow();
             }
         });
         group.add(new AnAction("Jump to Culprit", "Open the culprit frame in the editor", AllIcons.Actions.EditSource) {
@@ -106,36 +94,17 @@ class StacktalePanel extends SimpleToolWindowPanel {
         return toolbar;
     }
 
-    private void schedulePoll() {
-        alarm.addRequest(() -> {
-            refresh();
-            schedulePoll();
-        }, POLL_MILLIS);
-    }
-
-    private void refresh() {
-        Path log = findLog();
+    private void reportsChanged(@Nullable Path log, @NotNull List<StReport> reports) {
         if (log == null) {
             toolWindow.setTitle("Stacktale");
             model.clear();
             detail.setText("No errors-ai.log found in this project yet.\n\n"
                     + "Add the stacktale library and trigger an error — reports will appear here.");
-            lastContent = null;
             return;
         }
 
         toolWindow.setTitle("Stacktale — " + log);
 
-        String content;
-        try {
-            content = Files.readString(log, StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            return; // transient (mid-write, locked) — the next poll retries
-        }
-        if (content.equals(lastContent)) return;
-        lastContent = content;
-
-        List<StReport> reports = StReportParser.parse(content);
         StReport previouslySelected = list.getSelectedValue();
         model.clear();
         for (int i = reports.size() - 1; i >= 0; i--) model.addElement(reports.get(i)); // newest first
@@ -156,22 +125,6 @@ class StacktalePanel extends SimpleToolWindowPanel {
         return 0;
     }
 
-    /** Prefer the conventional ./errors-ai.log; fall back to any indexed one in the project. */
-    private Path findLog() {
-        String base = project.getBasePath();
-        if (base != null) {
-            Path candidate = Path.of(base, "errors-ai.log");
-            if (Files.isRegularFile(candidate)) return candidate;
-        }
-        Collection<VirtualFile> found = ReadAction.compute(() ->
-                FilenameIndex.getVirtualFilesByName("errors-ai.log", GlobalSearchScope.projectScope(project)));
-        for (VirtualFile vf : found) {
-            Path p = Path.of(vf.getPath());
-            if (Files.isRegularFile(p)) return p;
-        }
-        return null;
-    }
-
     private void showSelected() {
         StReport report = list.getSelectedValue();
         detail.setText(report == null ? "" : report.block());
@@ -190,7 +143,6 @@ class StacktalePanel extends SimpleToolWindowPanel {
         StReport report = list.getSelectedValue();
         if (report != null) CopyPasteManager.getInstance().setContents(new StringSelection(report.block()));
     }
-
     private static class ReportCellRenderer extends DefaultListCellRenderer {
         @Override
         public Component getListCellRendererComponent(JList<?> l, Object value, int i, boolean selected, boolean focus) {
@@ -200,7 +152,6 @@ class StacktalePanel extends SimpleToolWindowPanel {
             }
             return this;
         }
-
         private static String escape(String s) {
             return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
         }
