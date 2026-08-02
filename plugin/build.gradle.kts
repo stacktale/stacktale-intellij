@@ -21,6 +21,8 @@ dependencies {
         // installed IDE (no ~1GB SDK download); the default downloads Community for CI/others.
         val localIde = providers.gradleProperty("localIdePath").orNull
         if (localIde != null) local(localIde) else intellijIdeaCommunity("2024.3.5")
+
+        pluginVerifier() // the CLI the verifyPlugin task shells out to
     }
 }
 
@@ -33,6 +35,20 @@ intellijPlatform {
         ideaVersion {
             sinceBuild = "242"
             untilBuild = "261.*"
+        }
+    }
+
+    // sinceBuild above is a claim; this is what makes it true. 2024.2.5 is the oldest release
+    // in the 242 line, so it is where an API the plugin uses might not exist yet — the failure
+    // the compile target cannot show. untilBuild stays unverified on purpose: 261 has no
+    // release to check against, so it remains a forward-looking promise.
+    //
+    // Use the string notation. The ide(IntelliJPlatformType, String) overload accepts these
+    // versions and then schedules nothing, leaving a green run that verified one IDE.
+    pluginVerification {
+        ides {
+            ide("IC-2024.2.5") // the floor sinceBuild = 242 claims
+            ide("IC-2024.3.5") // what the plugin compiles against
         }
     }
 }
