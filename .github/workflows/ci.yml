@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
@@ -65,7 +65,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
@@ -91,7 +91,7 @@ jobs:
           set -euo pipefail
           shopt -s nullglob
           reports=plugin/build/reports/pluginVerifier
-          declared=$(grep -c '^ *ide("' plugin/build.gradle.kts)
+          declared=$(grep -c '^ *create(IntelliJPlatformType' plugin/build.gradle.kts)
           dirs=("$reports"/*/)
           echo "declared=$declared verified=${#dirs[@]}"
           if [ "${#dirs[@]}" -ne "$declared" ]; then

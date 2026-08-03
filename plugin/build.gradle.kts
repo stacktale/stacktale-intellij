@@ -1,6 +1,8 @@
+import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
+
 plugins {
     id("java")
-    id("org.jetbrains.intellij.platform") version "2.1.0"
+    id("org.jetbrains.intellij.platform") version "2.18.1"
 }
 
 java {
@@ -43,12 +45,13 @@ intellijPlatform {
     // the compile target cannot show. untilBuild stays unverified on purpose: 261 has no
     // release to check against, so it remains a forward-looking promise.
     //
-    // Use the string notation. The ide(IntelliJPlatformType, String) overload accepts these
-    // versions and then schedules nothing, leaving a green run that verified one IDE.
+    // create(type, version), not ide(...). On 2.1.0 the ide(String) notation worked and the
+    // typed overload silently scheduled nothing; 2.18.1 removed ide() altogether, so the same
+    // mistake is now a compile error rather than a green run that verified one IDE.
     pluginVerification {
         ides {
-            ide("IC-2024.2.5") // the floor sinceBuild = 242 claims
-            ide("IC-2024.3.5") // what the plugin compiles against
+            create(IntelliJPlatformType.IntellijIdeaCommunity, "2024.2.5") // the sinceBuild = 242 floor
+            create(IntelliJPlatformType.IntellijIdeaCommunity, "2024.3.5") // the compile target
         }
     }
 }
