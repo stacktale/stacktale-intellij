@@ -20,7 +20,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6.2.0
 
       # :core holds the parser and its tests; :plugin has none by design (its test task is
       # disabled in build.gradle.kts), so `gradlew test` alone reports success either way.
@@ -69,7 +69,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6.2.0
 
       # Each IDE under test is a ~1GB download. Caching them separately from the Gradle cache
       # keeps a dependency change from evicting them.
