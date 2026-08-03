@@ -26,8 +26,13 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
-  issues: write
+  # write, and it must be pull-requests rather than issues. The comment goes through
+  # POST /repos/:owner/:repo/issues/:number/comments, so `issues: write` is the obvious
+  # reading and it is wrong: GitHub scopes that endpoint by what the number points at, and
+  # for a pull request the permission checked is pull-requests. Declaring `pull-requests:
+  # read` here was the denial — an explicit permissions block is absolute, so it capped the
+  # very thing being asked for while `issues: write` was granted and never consulted.
+  pull-requests: write
 
 jobs:
   thanks:
@@ -83,5 +88,6 @@ jobs:
           # Still tolerated rather than fatal: a red X on main over a thank-you note is worse
           # than a missing note. The ::warning:: is what makes it visible instead of silent.
           if ! gh api --method POST "repos/$REPO/issues/$pr/comments" -F body=@"$body"; then
-            echo "::warning::could not comment — check Settings > Actions > Workflow permissions"
+            echo "::warning::could not comment — check the permissions block above and"
+            echo "::warning::Settings > Actions > Workflow permissions"
           fi
