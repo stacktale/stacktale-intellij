@@ -41,7 +41,6 @@ public final class StacktaleStatusBarWidgetFactory implements StatusBarWidgetFac
             StacktaleReportService.Listener {
 
         private final Project project;
-        private final StacktaleReportService reportService;
 
         private volatile StatusBar statusBar;
         private volatile Path currentLog;
@@ -49,8 +48,7 @@ public final class StacktaleStatusBarWidgetFactory implements StatusBarWidgetFac
 
         private StacktaleStatusBarWidget(@NotNull Project project) {
             this.project = project;
-            this.reportService = StacktaleReportService.getInstance(project);
-            reportService.addListener(this);
+            StacktaleReportService.getInstance(project).addListener(this, this);
         }
 
         @Override
@@ -120,7 +118,6 @@ public final class StacktaleStatusBarWidgetFactory implements StatusBarWidgetFac
 
         @Override
         public void dispose() {
-            reportService.removeListener(this);
             statusBar = null;
         }
     }

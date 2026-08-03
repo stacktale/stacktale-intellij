@@ -1,6 +1,7 @@
 package io.github.gabrielbbaldez.stacktale.idea;
 
 import com.intellij.icons.AllIcons;
+import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.actionSystem.ActionToolbar;
 import com.intellij.openapi.actionSystem.AnAction;
@@ -33,7 +34,7 @@ import java.util.List;
  * and a toolbar to refresh / jump to the culprit / copy for an AI. Reports come from
  * the single project-level poll owned by {@link StacktaleReportService}.
  */
-class StacktalePanel extends SimpleToolWindowPanel {
+class StacktalePanel extends SimpleToolWindowPanel implements Disposable {
 
     private final Project project;
     private final ToolWindow toolWindow;
@@ -66,7 +67,7 @@ class StacktalePanel extends SimpleToolWindowPanel {
         setContent(splitter);
         setToolbar(buildToolbar().getComponent());
 
-        reportService.addListener(this::reportsChanged);
+        reportService.addListener(this::reportsChanged, this);
     }
 
     private ActionToolbar buildToolbar() {
@@ -143,6 +144,11 @@ class StacktalePanel extends SimpleToolWindowPanel {
         StReport report = list.getSelectedValue();
         if (report != null) CopyPasteManager.getInstance().setContents(new StringSelection(report.block()));
     }
+
+    @Override
+    public void dispose() {
+    }
+
     private static class ReportCellRenderer extends DefaultListCellRenderer {
         @Override
         public Component getListCellRendererComponent(JList<?> l, Object value, int i, boolean selected, boolean focus) {
@@ -152,6 +158,7 @@ class StacktalePanel extends SimpleToolWindowPanel {
             }
             return this;
         }
+
         private static String escape(String s) {
             return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
         }
