@@ -73,7 +73,7 @@ jobs:
 
       # Each IDE under test is a ~1GB download. Caching them separately from the Gradle cache
       # keeps a dependency change from evicting them.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             ~/.gradle/caches/modules-2/files-2.1/com.jetbrains.intellij.idea
