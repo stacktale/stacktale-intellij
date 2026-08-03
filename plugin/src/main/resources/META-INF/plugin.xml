@@ -20,5 +20,9 @@
     <extensions defaultExtensionNs="com.intellij">
         <toolWindow id="Stacktale" anchor="bottom" icon="/icons/stacktale.svg"
                     factoryClass="io.github.gabrielbbaldez.stacktale.idea.StacktaleToolWindowFactory"/>
+
+        <statusBarWidgetFactory
+                id="StacktaleErrorCount"
+                implementation="io.github.gabrielbbaldez.stacktale.idea.StacktaleStatusBarWidgetFactory"/>
     </extensions>
 </idea-plugin>
