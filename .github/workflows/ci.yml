@@ -54,7 +54,7 @@ jobs:
       - name: Build the distributable
         run: ./gradlew buildPlugin
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: plugin-zip
           path: plugin/build/distributions/*.zip
@@ -103,7 +103,7 @@ jobs:
             echo "- verified against $(basename "$d")" >> "$GITHUB_STEP_SUMMARY"
           done
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: plugin-verifier-reports
