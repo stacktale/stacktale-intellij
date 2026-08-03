@@ -3,14 +3,15 @@ name: First contribution
 # Thanks someone the first time a PR of theirs is merged. On merge rather than on open: at
 # that point they've actually given something, so it reads as thanks instead of a pitch.
 #
-# On `push` to main rather than `pull_request_target: closed`, which is the obvious trigger
-# and does not work. A workflow run triggered by a fork's pull request gets a read-only
-# GITHUB_TOKEN regardless of the repository's Workflow permissions setting, so the POST came
-# back 403 on every real first contribution — silently, because the run itself was green.
-# Granting it means enabling "send write tokens to workflows from fork pull requests", which
-# hands a write token to every fork-triggered run in the repository. That is a bad trade for
-# a thank-you note. A push to main is not fork-triggered, so its token honours the
-# permissions block below.
+# On `push` to main rather than `pull_request_target: closed`. The 403s that prompted the
+# change turned out to be the permissions block below, not the trigger — so treat this as a
+# preference, not a fix: a push to main is plainly not fork-triggered, which takes the whole
+# question of what token a fork PR gets off the table. `pull_request_target` would very
+# possibly work now too; it was never tested with the permission right, because the
+# permission was wrong the entire time.
+#
+# Every run before that fix was green. A 403 here only raises a ::warning::, and nobody reads
+# a warning on a green run — which is why this went unnoticed through several merges.
 #
 # Note on the check: author_association is NOT usable here either. Merging a PR promotes its
 # author from FIRST_TIME_CONTRIBUTOR to CONTRIBUTOR before the event is delivered, so a
