@@ -1,0 +1,24 @@
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      # collapse routine minor/patch bumps into ONE PR; majors stay
+      # individual so a risky bump gets its own scrutiny (a major bump of
+      # the IntelliJ Platform Gradle Plugin can change task names and DSL
+      # shapes, and deserves its own review).
+      gradle-minor-patch:
+        update-types:
+          - minor
+          - patch
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      actions-minor-patch:
+        update-types:
+          - minor
+          - patch
