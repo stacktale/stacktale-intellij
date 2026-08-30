@@ -24,5 +24,11 @@
         <statusBarWidgetFactory
                 id="StacktaleErrorCount"
                 implementation="io.github.gabrielbbaldez.stacktale.idea.StacktaleStatusBarWidgetFactory"/>
+
+        <projectConfigurable
+                parentId="tools"
+                id="io.github.gabrielbbaldez.stacktale.settings"
+                displayName="Stacktale"
+                instance="io.github.gabrielbbaldez.stacktale.idea.StacktaleConfigurable"/>
     </extensions>
 </idea-plugin>
