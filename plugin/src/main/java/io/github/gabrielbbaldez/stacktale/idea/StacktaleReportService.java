@@ -25,11 +25,10 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * Project-level source of Stacktale reports.
  *
  * Owns the single errors-ai.log poll used by both the tool window and status-bar widget.
+ * Which file it reads and how often come from {@link StacktaleSettings}.
  */
 @Service(Service.Level.PROJECT)
 public final class StacktaleReportService implements Disposable {
-
-    private static final int POLL_MILLIS = 3000;
 
     interface Listener {
         void reportsChanged(@Nullable Path log, @NotNull List<StReport> reports);
@@ -74,18 +73,27 @@ public final class StacktaleReportService implements Disposable {
         refresh(false);
 
         if (!disposed && !project.isDisposed()) {
-            alarm.addRequest(this::poll, POLL_MILLIS);
+            // Read the interval here rather than capturing it once: every tick arms the next
+            // one, so a changed setting applies on the following tick instead of only after
+            // the project is reopened.
+            alarm.addRequest(this::poll, settings().pollMillis());
         }
     }
 
     private synchronized void refresh(boolean force) {
         if (disposed || project.isDisposed()) return;
 
-        Path log = findLog();
+        StacktaleSettings settings = settings();
+
+        // An empty setting keeps the auto-detect, so detection is the fallback rather than
+        // something a configured path replaces; a set path is read as given, even when it is
+        // not there yet, so the tool window never quietly shows a different file's reports.
+        boolean autoDetecting = settings.logPath().isEmpty();
+        Path log = autoDetecting ? findLog() : regularFile(settings.configuredLog());
 
         // A nested log cannot be resolved while project indexes are unavailable.
         // Preserve the current state and let the next poll retry after indexing.
-        if (log == null && DumbService.getInstance(project).isDumb()) return;
+        if (log == null && autoDetecting && DumbService.getInstance(project).isDumb()) return;
 
         if (log == null) {
             boolean changed = currentLog != null
@@ -115,6 +123,10 @@ public final class StacktaleReportService implements Disposable {
         notifyListeners();
     }
 
+    private @NotNull StacktaleSettings settings() {
+        return StacktaleSettings.getInstance(project);
+    }
+
     private void notifyListeners() {
         Path log = currentLog;
         List<StReport> reports = currentReports;
@@ -126,6 +138,10 @@ public final class StacktaleReportService implements Disposable {
                 listener.reportsChanged(log, reports);
             }
         });
+    }
+
+    private static @Nullable Path regularFile(@Nullable Path path) {
+        return path != null && Files.isRegularFile(path) ? path : null;
     }
 
     /** Prefer ./errors-ai.log; otherwise use an indexed file in the project. */

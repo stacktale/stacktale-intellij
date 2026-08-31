@@ -72,7 +72,7 @@ class StacktalePanel extends SimpleToolWindowPanel implements Disposable {
 
     private ActionToolbar buildToolbar() {
         DefaultActionGroup group = new DefaultActionGroup();
-        group.add(new AnAction("Refresh", "Re-read errors-ai.log", AllIcons.Actions.Refresh) {
+        group.add(new AnAction("Refresh", "Re-read the report log", AllIcons.Actions.Refresh) {
             @Override
             public void actionPerformed(@NotNull AnActionEvent e) {
                 reportService.refreshNow();
@@ -99,8 +99,8 @@ class StacktalePanel extends SimpleToolWindowPanel implements Disposable {
         if (log == null) {
             toolWindow.setTitle("Stacktale");
             model.clear();
-            detail.setText("No errors-ai.log found in this project yet.\n\n"
-                    + "Add the stacktale library and trigger an error — reports will appear here.");
+            detail.setText(noLogMessage());
+            detail.setCaretPosition(0);
             return;
         }
 
@@ -117,6 +117,17 @@ class StacktalePanel extends SimpleToolWindowPanel implements Disposable {
                     + "Resolved log path:\n" + log);
             detail.setCaretPosition(0);
         }
+    }
+
+    /** Auto-detect and a configured path come up empty for different reasons; say which one. */
+    private String noLogMessage() {
+        String configured = StacktaleSettings.getInstance(project).logPath();
+        if (configured.isEmpty()) {
+            return "No errors-ai.log found in this project yet.\n\n"
+                    + "Add the stacktale library and trigger an error — reports will appear here.";
+        }
+        return "No file at the log path set for this project:\n\n" + configured + "\n\n"
+                + "Change it in Settings → Tools → Stacktale, or clear it to auto-detect errors-ai.log.";
     }
 
     private int indexOfId(String id) {
