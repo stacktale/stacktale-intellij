@@ -1,5 +1,6 @@
 package io.github.gabrielbbaldez.stacktale.idea;
 
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.application.ReadAction;
@@ -8,6 +9,7 @@ import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.psi.search.FilenameIndex;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.util.Alarm;
@@ -34,6 +36,7 @@ public final class StacktaleReportService implements Disposable {
         void reportsChanged(@Nullable Path log, @NotNull List<StReport> reports);
     }
 
+    private static final Logger LOG = Logger.getInstance(StacktaleReportService.class);
     private final Project project;
     private final Alarm alarm;
     private final List<Listener> listeners = new CopyOnWriteArrayList<>();
@@ -70,13 +73,19 @@ public final class StacktaleReportService implements Disposable {
     private void poll() {
         if (disposed || project.isDisposed()) return;
 
-        refresh(false);
-
-        if (!disposed && !project.isDisposed()) {
-            // Read the interval here rather than capturing it once: every tick arms the next
-            // one, so a changed setting applies on the following tick instead of only after
-            // the project is reopened.
-            alarm.addRequest(this::poll, settings().pollMillis());
+        try {
+            refresh(false);
+        } catch (ProcessCanceledException pce) {
+            throw pce;
+        } catch (Throwable t) {
+            LOG.warn("Stacktale refresh failed; will retry on the next poll", t);
+        } finally {
+            if (!disposed && !project.isDisposed()) {
+                // Read the interval here rather than capturing it once: every tick arms the next
+                // one, so a changed setting applies on the following tick instead of only after
+                // the project is reopened.
+                alarm.addRequest(this::poll, settings().pollMillis());
+            }
         }
     }
 
